@@ -1,0 +1,179 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
+#define MAX_PECA 5
+
+// Documentação: Estrutura para representar uma peça do Tetris.
+// Cada peça tem um tipo (nome) e um identificador único (id).
+typedef struct {
+    char nome;
+    int id;
+} Peca;
+
+// Documentação: Estrutura para a fila circular de peças.
+// A fila usa um array de tamanho fixo para armazenar as peças.
+typedef struct {
+    Peca pecas[MAX_PECA];
+    int frente;     // Índice da primeira peça na fila.
+    int tras;       // Índice da última peça na fila.
+    int contador;   // Número de peças atualmente na fila.
+} Fila;
+
+// Documentação: Variável global para gerar identificadores únicos para as peças.
+int proximoId = 0;
+
+// Documentação: Limpa a tela do console para melhor usabilidade.
+void limparTela() {
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+}
+
+// Documentação: Inicializa a fila, definindo seus índices e contador iniciais.
+void inicializarFila(Fila* fila) {
+    fila->frente = 0;
+    fila->tras = -1;
+    fila->contador = 0;
+}
+
+// Documentação: Gera uma nova peça com um tipo aleatório e um id único.
+// Os tipos são 'I', 'O', 'T', 'L'.
+Peca gerarPeca() {
+    Peca novaPeca;
+    char tipos[] = {'I', 'O', 'T', 'L'};
+    int tipoAleatorio = rand() % 4;
+
+    novaPeca.nome = tipos[tipoAleatorio];
+    novaPeca.id = proximoId++;
+    return novaPeca;
+}
+
+// Documentação: Verifica se a fila está cheia.
+// A fila está cheia quando o número de peças é igual à capacidade máxima.
+int filaCheia(Fila* fila) {
+    return fila->contador == MAX_PECA;
+}
+
+// Documentação: Verifica se a fila está vazia.
+// A fila está vazia quando o número de peças é zero.
+int filaVazia(Fila* fila) {
+    return fila->contador == 0;
+}
+
+// Documentação: Enfileira uma nova peça (enqueue) ao final da fila.
+// Usa aritmética modular para garantir o comportamento circular.
+void enfileirar(Fila* fila, Peca novaPeca) {
+    if (filaCheia(fila)) {
+        printf("A fila esta cheia. Nao e possivel adicionar mais pecas.\n");
+        return;
+    }
+    fila->tras = (fila->tras + 1) % MAX_PECA;
+    fila->pecas[fila->tras] = novaPeca;
+    fila->contador++;
+}
+
+// Documentação: Desenfileira uma peça (dequeue) da frente da fila.
+// Retorna a peça removida. Se a fila estiver vazia, retorna uma peça inválida.
+Peca desenfileirar(Fila* fila) {
+    Peca pecaRemovida;
+    if (filaVazia(fila)) {
+        printf("A fila esta vazia. Nao ha pecas para jogar.\n");
+        pecaRemovida.nome = ' ';
+        pecaRemovida.id = -1;
+        return pecaRemovida;
+    }
+    pecaRemovida = fila->pecas[fila->frente];
+    fila->frente = (fila->frente + 1) % MAX_PECA;
+    fila->contador--;
+    return pecaRemovida;
+}
+
+// Documentação: Exibe o estado atual da fila de forma clara para o usuário.
+// Percorre a fila de forma circular a partir do índice 'frente'.
+void exibirFila(Fila* fila) {
+    printf("------------------------------------------\n");
+    if (filaVazia(fila)) {
+        printf("Fila de pecas futuras: [Vazia]\n");
+    } else {
+        printf("Fila de pecas futuras: ");
+        int i = fila->frente;
+        int count = 0;
+        while (count < fila->contador) {
+            printf("[%c, id:%d]", fila->pecas[i].nome, fila->pecas[i].id);
+            i = (i + 1) % MAX_PECA;
+            count++;
+            if (count < fila->contador) {
+                printf(" -> ");
+            }
+        }
+        printf("\n");
+    }
+    printf("------------------------------------------\n");
+}
+
+// Documentação: Função principal que gerencia o menu e a interação com o usuário.
+int main() {
+    Fila fila;
+    int opcao;
+    srand(time(NULL)); // Inicializa o gerador de números aleatórios.
+
+    inicializarFila(&fila);
+
+    // Inicializa a fila com 5 peças ao iniciar o programa.
+    for (int i = 0; i < MAX_PECA; i++) {
+        enfileirar(&fila, gerarPeca());
+    }
+
+    do {
+        limparTela();
+        exibirFila(&fila);
+
+        printf("\n--- Menu Tetris Stack ---\n");
+        printf("1. Jogar a proxima peca (Dequeue)\n");
+        printf("2. Inserir uma nova peca (Enqueue)\n");
+        printf("3. Sair\n");
+        printf("Escolha uma opcao: ");
+        scanf("%d", &opcao);
+
+        switch (opcao) {
+            case 1: {
+                Peca jogada = desenfileirar(&fila);
+                if (jogada.id != -1) {
+                    printf("\nPeca jogada: %c (id:%d)\n", jogada.nome, jogada.id);
+                }
+                break;
+            }
+            case 2: {
+                enfileirar(&fila, gerarPeca());
+                printf("\nNova peca adicionada a fila.\n");
+                break;
+            }
+            case 3:
+                printf("\nSaindo do jogo...\n");
+                break;
+            default:
+                printf("\nOpcao invalida. Tente novamente.\n");
+                break;
+        }
+        
+        if (opcao != 3) {
+            printf("\nPressione ENTER para continuar...\n");
+            // Limpa o buffer de entrada.
+            while(getchar() != '\n');
+            // Aguarda a entrada do usuário.
+            getchar();
+        }
+
+    } while (opcao != 3);
+
+    return 0;
+}
